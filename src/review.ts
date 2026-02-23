@@ -16,7 +16,6 @@ import {Inputs} from './inputs'
 import {octokit} from './octokit'
 import {type Options} from './options'
 import {type Prompts} from './prompts'
-import {getTokenCount} from './tokenizer'
 
 // eslint-disable-next-line camelcase
 const context = github_context
@@ -327,13 +326,6 @@ ${
       ins,
       options.reviewSimpleChanges
     )
-    const tokens = getTokenCount(summarizePrompt)
-
-    if (tokens > options.lightTokenLimits.requestTokens) {
-      info(`summarize: diff tokens exceeds limit, skip ${filename}`)
-      summariesFailed.push(`${filename} (diff tokens exceeds limit)`)
-      return null
-    }
 
     // summarize content
     try {
@@ -533,21 +525,8 @@ ${
       const ins: Inputs = inputs.clone()
       ins.filename = filename
 
-      // calculate tokens based on inputs so far
-      let tokens = getTokenCount(prompts.renderReviewFileDiff(ins))
-      // loop to calculate total patch tokens
-      let patchesToPack = 0
-      for (const [, , patch] of patches) {
-        const patchTokens = getTokenCount(patch)
-        if (tokens + patchTokens > options.heavyTokenLimits.requestTokens) {
-          info(
-            `only packing ${patchesToPack} / ${patches.length} patches, tokens: ${tokens} / ${options.heavyTokenLimits.requestTokens}`
-          )
-          break
-        }
-        tokens += patchTokens
-        patchesToPack += 1
-      }
+      // pack all patches (no token limit with Claude's 200K context)
+      const patchesToPack = patches.length
 
       let patchesPacked = 0
       for (const [startLine, endLine, patch] of patches) {
@@ -588,17 +567,6 @@ ${
             }`
           )
         }
-        // try packing comment_chain into this request
-        const commentChainTokens = getTokenCount(commentChain)
-        if (
-          tokens + commentChainTokens >
-          options.heavyTokenLimits.requestTokens
-        ) {
-          commentChain = ''
-        } else {
-          tokens += commentChainTokens
-        }
-
         ins.patches += `
 ${patch}
 `

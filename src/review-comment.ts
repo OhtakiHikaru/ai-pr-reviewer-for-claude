@@ -12,7 +12,6 @@ import {Inputs} from './inputs'
 import {octokit} from './octokit'
 import {type Options} from './options'
 import {type Prompts} from './prompts'
-import {getTokenCount} from './tokenizer'
 
 // eslint-disable-next-line camelcase
 const context = github_context
@@ -128,30 +127,9 @@ export const handleReviewComment = async (
         }
       }
 
-      // get tokens so far
-      let tokens = getTokenCount(prompts.renderComment(inputs))
-
-      if (tokens > options.heavyTokenLimits.requestTokens) {
-        await commenter.reviewCommentReply(
-          pullNumber,
-          topLevelComment,
-          'Cannot reply to this comment as diff being commented is too large and exceeds the token limit.'
-        )
-        return
-      }
-      // pack file diff into the inputs if they are not too long
+      // pack file diff into the inputs
       if (fileDiff.length > 0) {
-        // count occurrences of $file_diff in prompt
-        const fileDiffCount = prompts.comment.split('$file_diff').length - 1
-        const fileDiffTokens = getTokenCount(fileDiff)
-        if (
-          fileDiffCount > 0 &&
-          tokens + fileDiffTokens * fileDiffCount <=
-            options.heavyTokenLimits.requestTokens
-        ) {
-          tokens += fileDiffTokens * fileDiffCount
-          inputs.fileDiff = fileDiff
-        }
+        inputs.fileDiff = fileDiff
       }
 
       // get summary of the PR
@@ -160,16 +138,7 @@ export const handleReviewComment = async (
         pullNumber
       )
       if (summary) {
-        // pack short summary into the inputs if it is not too long
-        const shortSummary = commenter.getShortSummary(summary.body)
-        const shortSummaryTokens = getTokenCount(shortSummary)
-        if (
-          tokens + shortSummaryTokens <=
-          options.heavyTokenLimits.requestTokens
-        ) {
-          tokens += shortSummaryTokens
-          inputs.shortSummary = shortSummary
-        }
+        inputs.shortSummary = commenter.getShortSummary(summary.body)
       }
 
       const [reply] = await heavyBot.chat(prompts.renderComment(inputs), {})

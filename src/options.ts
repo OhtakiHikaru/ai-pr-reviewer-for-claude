@@ -1,6 +1,5 @@
 import {info} from '@actions/core'
 import {minimatch} from 'minimatch'
-import {TokenLimits} from './limits'
 
 export class Options {
   debug: boolean
@@ -18,9 +17,8 @@ export class Options {
   openaiTimeoutMS: number
   openaiConcurrencyLimit: number
   githubConcurrencyLimit: number
-  lightTokenLimits: TokenLimits
-  heavyTokenLimits: TokenLimits
-  apiBaseUrl: string
+  vertexProjectId: string
+  vertexRegion: string
   language: string
 
   constructor(
@@ -32,14 +30,15 @@ export class Options {
     reviewCommentLGTM = false,
     pathFilters: string[] | null = null,
     systemMessage = '',
-    openaiLightModel = 'gpt-3.5-turbo',
-    openaiHeavyModel = 'gpt-3.5-turbo',
+    openaiLightModel = 'claude-opus-4-6@default',
+    openaiHeavyModel = 'claude-opus-4-6@default',
     openaiModelTemperature = '0.0',
     openaiRetries = '3',
     openaiTimeoutMS = '120000',
     openaiConcurrencyLimit = '6',
     githubConcurrencyLimit = '6',
-    apiBaseUrl = 'https://api.openai.com/v1',
+    vertexProjectId = '',
+    vertexRegion = 'us-east5',
     language = 'en-US'
   ) {
     this.debug = debug
@@ -57,9 +56,8 @@ export class Options {
     this.openaiTimeoutMS = parseInt(openaiTimeoutMS)
     this.openaiConcurrencyLimit = parseInt(openaiConcurrencyLimit)
     this.githubConcurrencyLimit = parseInt(githubConcurrencyLimit)
-    this.lightTokenLimits = new TokenLimits(openaiLightModel)
-    this.heavyTokenLimits = new TokenLimits(openaiHeavyModel)
-    this.apiBaseUrl = apiBaseUrl
+    this.vertexProjectId = vertexProjectId
+    this.vertexRegion = vertexRegion
     this.language = language
   }
 
@@ -80,9 +78,8 @@ export class Options {
     info(`openai_timeout_ms: ${this.openaiTimeoutMS}`)
     info(`openai_concurrency_limit: ${this.openaiConcurrencyLimit}`)
     info(`github_concurrency_limit: ${this.githubConcurrencyLimit}`)
-    info(`summary_token_limits: ${this.lightTokenLimits.string()}`)
-    info(`review_token_limits: ${this.heavyTokenLimits.string()}`)
-    info(`api_base_url: ${this.apiBaseUrl}`)
+    info(`vertex_project_id: ${this.vertexProjectId}`)
+    info(`vertex_region: ${this.vertexRegion}`)
     info(`language: ${this.language}`)
   }
 
@@ -140,14 +137,8 @@ export class PathFilter {
 
 export class OpenAIOptions {
   model: string
-  tokenLimits: TokenLimits
 
-  constructor(model = 'gpt-3.5-turbo', tokenLimits: TokenLimits | null = null) {
+  constructor(model = 'claude-opus-4-6@default') {
     this.model = model
-    if (tokenLimits != null) {
-      this.tokenLimits = tokenLimits
-    } else {
-      this.tokenLimits = new TokenLimits(model)
-    }
   }
 }

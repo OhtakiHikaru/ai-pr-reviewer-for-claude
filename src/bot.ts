@@ -1,13 +1,5 @@
-import './fetch-polyfill'
-
-import {info, setFailed, warning} from '@actions/core'
-import {
-  ChatGPTAPI,
-  ChatGPTError,
-  ChatMessage,
-  SendMessageOptions
-  // eslint-disable-next-line import/no-unresolved
-} from 'chatgpt'
+import {info, warning} from '@actions/core'
+import {AnthropicVertex} from '@anthropic-ai/vertex-sdk'
 import pRetry from 'p-retry'
 import {OpenAIOptions, Options} from './options'
 
@@ -18,39 +10,17 @@ export interface Ids {
 }
 
 export class Bot {
-  private readonly api: ChatGPTAPI | null = null // not free
-
+  private readonly api: AnthropicVertex
   private readonly options: Options
+  private readonly openaiOptions: OpenAIOptions
 
   constructor(options: Options, openaiOptions: OpenAIOptions) {
     this.options = options
-    if (process.env.OPENAI_API_KEY) {
-      const currentDate = new Date().toISOString().split('T')[0]
-      const systemMessage = `${options.systemMessage} 
-Knowledge cutoff: ${openaiOptions.tokenLimits.knowledgeCutOff}
-Current date: ${currentDate}
-
-IMPORTANT: Entire response must be in the language with ISO code: ${options.language}
-`
-
-      this.api = new ChatGPTAPI({
-        apiBaseUrl: options.apiBaseUrl,
-        systemMessage,
-        apiKey: process.env.OPENAI_API_KEY,
-        apiOrg: process.env.OPENAI_API_ORG ?? undefined,
-        debug: options.debug,
-        maxModelTokens: openaiOptions.tokenLimits.maxTokens,
-        maxResponseTokens: openaiOptions.tokenLimits.responseTokens,
-        completionParams: {
-          temperature: options.openaiModelTemperature,
-          model: openaiOptions.model
-        }
-      })
-    } else {
-      const err =
-        "Unable to initialize the OpenAI API, both 'OPENAI_API_KEY' environment variable are not available"
-      throw new Error(err)
-    }
+    this.openaiOptions = openaiOptions
+    this.api = new AnthropicVertex({
+      region: options.vertexRegion,
+      projectId: options.vertexProjectId
+    })
   }
 
   chat = async (message: string, ids: Ids): Promise<[string, Ids]> => {
@@ -59,9 +29,9 @@ IMPORTANT: Entire response must be in the language with ISO code: ${options.lang
       res = await this.chat_(message, ids)
       return res
     } catch (e: unknown) {
-      if (e instanceof ChatGPTError) {
-        warning(`Failed to chat: ${e}, backtrace: ${e.stack}`)
-      }
+      warning(
+        `Failed to chat: ${e}, backtrace: ${e instanceof Error ? e.stack : ''}`
+      )
       return res
     }
   }
@@ -76,53 +46,60 @@ IMPORTANT: Entire response must be in the language with ISO code: ${options.lang
       return ['', {}]
     }
 
-    let response: ChatMessage | undefined
+    const currentDate = new Date().toISOString().split('T')[0]
+    const systemMessage = `${this.options.systemMessage}
+Current date: ${currentDate}
 
-    if (this.api != null) {
-      const opts: SendMessageOptions = {
-        timeoutMs: this.options.openaiTimeoutMS
-      }
-      if (ids.parentMessageId) {
-        opts.parentMessageId = ids.parentMessageId
-      }
-      try {
-        response = await pRetry(() => this.api!.sendMessage(message, opts), {
+IMPORTANT: Entire response must be in the language with ISO code: ${this.options.language}
+`
+
+    let responseText = ''
+    try {
+      const response = await pRetry(
+        () =>
+          this.api.messages.create({
+            model: this.openaiOptions.model,
+            max_tokens: 4096,
+            temperature: this.options.openaiModelTemperature,
+            system: systemMessage,
+            messages: [
+              {
+                role: 'user',
+                content: message
+              }
+            ]
+          }),
+        {
           retries: this.options.openaiRetries
-        })
-      } catch (e: unknown) {
-        if (e instanceof ChatGPTError) {
-          info(
-            `response: ${response}, failed to send message to openai: ${e}, backtrace: ${e.stack}`
-          )
         }
-      }
+      )
+
       const end = Date.now()
       info(`response: ${JSON.stringify(response)}`)
+      info(`sendMessage (including retries) response time: ${end - start} ms`)
+
+      if (response.content.length > 0 && response.content[0].type === 'text') {
+        responseText = response.content[0].text
+      }
+    } catch (e: unknown) {
       info(
-        `openai sendMessage (including retries) response time: ${
-          end - start
-        } ms`
+        `failed to send message to Claude: ${e}, backtrace: ${
+          e instanceof Error ? e.stack : ''
+        }`
       )
-    } else {
-      setFailed('The OpenAI API is not initialized')
     }
-    let responseText = ''
-    if (response != null) {
-      responseText = response.text
-    } else {
-      warning('openai response is null')
+
+    if (responseText === '') {
+      warning('Claude response is empty')
     }
+
     // remove the prefix "with " in the response
     if (responseText.startsWith('with ')) {
       responseText = responseText.substring(5)
     }
     if (this.options.debug) {
-      info(`openai responses: ${responseText}`)
+      info(`Claude responses: ${responseText}`)
     }
-    const newIds: Ids = {
-      parentMessageId: response?.id,
-      conversationId: response?.conversationId
-    }
-    return [responseText, newIds]
+    return [responseText, {}]
   }
 }

@@ -28,7 +28,8 @@ async function run(): Promise<void> {
     getInput('openai_timeout_ms'),
     getInput('openai_concurrency_limit'),
     getInput('github_concurrency_limit'),
-    getInput('openai_base_url'),
+    getInput('vertex_project_id'),
+    getInput('vertex_region'),
     getInput('language')
   )
 
@@ -44,26 +45,20 @@ async function run(): Promise<void> {
 
   let lightBot: Bot | null = null
   try {
-    lightBot = new Bot(
-      options,
-      new OpenAIOptions(options.openaiLightModel, options.lightTokenLimits)
-    )
+    lightBot = new Bot(options, new OpenAIOptions(options.openaiLightModel))
   } catch (e: any) {
     warning(
-      `Skipped: failed to create summary bot, please check your openai_api_key: ${e}, backtrace: ${e.stack}`
+      `Skipped: failed to create summary bot: ${e}, backtrace: ${e.stack}`
     )
     return
   }
 
   let heavyBot: Bot | null = null
   try {
-    heavyBot = new Bot(
-      options,
-      new OpenAIOptions(options.openaiHeavyModel, options.heavyTokenLimits)
-    )
+    heavyBot = new Bot(options, new OpenAIOptions(options.openaiHeavyModel))
   } catch (e: any) {
     warning(
-      `Skipped: failed to create review bot, please check your openai_api_key: ${e}, backtrace: ${e.stack}`
+      `Skipped: failed to create review bot: ${e}, backtrace: ${e.stack}`
     )
     return
   }
