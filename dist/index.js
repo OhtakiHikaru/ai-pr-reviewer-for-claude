@@ -6090,7 +6090,7 @@ IMPORTANT: Entire response must be in the language with ISO code: ${this.options
 // eslint-disable-next-line camelcase
 const context = _actions_github__WEBPACK_IMPORTED_MODULE_1__.context;
 const repo = context.repo;
-const COMMENT_GREETING = `${(0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('bot_icon')}   CodeRabbit`;
+const COMMENT_GREETING = '';
 const COMMENT_TAG = '<!-- This is an auto-generated comment by OSS CodeRabbit -->';
 const COMMENT_REPLY_TAG = '<!-- This is an auto-generated reply by OSS CodeRabbit -->';
 const SUMMARIZE_TAG = '<!-- This is an auto-generated comment: summarize by OSS CodeRabbit -->';
@@ -9695,7 +9695,7 @@ ${filename}: ${summary}
             (0,core.info)('release notes: nothing obtained from openai');
         }
         else {
-            let message = '### Summary by CodeRabbit\n\n';
+            let message = '### Summary\n\n';
             message += releaseNotesResponse;
             try {
                 await commenter.updateDescription(context.payload.pull_request.number, message);
@@ -9716,16 +9716,6 @@ ${lib_commenter/* SHORT_SUMMARY_START_TAG */.O$}
 ${inputs.shortSummary}
 ${lib_commenter/* SHORT_SUMMARY_END_TAG */.Zb}
 
----
-
-<details>
-<summary>Uplevel your code reviews with CodeRabbit Pro</summary>
-
-### CodeRabbit Pro
-
-If you like this project, please support us by purchasing the [Pro version](https://coderabbit.ai). The Pro version has advanced context, superior noise reduction and several proprietary improvements compared to the open source version. Moreover, CodeRabbit Pro is free for open source projects.
-
-</details>
 `;
     statusMsg += `
 ${skippedFiles.length > 0
@@ -9889,23 +9879,6 @@ ${reviewsSkipped.length > 0
 
 </details>
 
----
-
-<details>
-<summary>Tips</summary>
-
-### Chat with <img src="https://avatars.githubusercontent.com/in/347564?s=41&u=fad245b8b4c7254fe63dd4dcd4d662ace122757e&v=4" alt="Image description" width="20" height="20">  CodeRabbit Bot (\`@coderabbitai\`)
-- Reply on review comments left by this bot to ask follow-up questions. A review comment is a comment on a diff or a file.
-- Invite the bot into a review comment chain by tagging \`@coderabbitai\` in a reply.
-
-### Code suggestions
-- The bot may make code suggestions, but please review them carefully before committing since the line number ranges may be misaligned. 
-- You can edit the comment made by the bot and manually tweak the suggestion if it is slightly off.
-
-### Pausing incremental reviews
-- Add \`@coderabbitai: ignore\` anywhere in the PR description to pause further reviews from the bot.
-
-</details>
 `;
         // add existing_comment_ids_block with latest head sha
         summarizeComment += `\n${commenter.addReviewedCommitId(existingCommitIdsBlock, context.payload.pull_request.head.sha)}`;
