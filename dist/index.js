@@ -8904,7 +8904,7 @@ Instructions:
 `;
     reviewFileDiff = `## GitHub PR Title
 
-\`$title\` 
+\`$title\`
 
 ## Description
 
@@ -8922,21 +8922,42 @@ $short_summary
 
 Input: New hunks annotated with line numbers and old hunks (replaced code). Hunks represent incomplete code fragments.
 Additional Context: PR title, description, summaries and comment chains.
-Task: Review new hunks for substantive issues using provided context and respond with comments if necessary.
+Task: Perform a multi-perspective review of the new hunks and respond with comments if necessary.
 Output: Review comments in markdown with exact line number ranges in new hunks. Start and end line numbers must be within the same hunk. For single-line comments, start=end line number. Must use example response format below.
 Use fenced code blocks using the relevant language identifier where applicable.
 Don't annotate code snippets with line numbers. Format and indent code correctly.
 Do not use \`suggestion\` code blocks.
 For fixes, use \`diff\` code blocks, marking changes with \`+\` or \`-\`. The line number range for comments with fix snippets must exactly match the range to replace in the new hunk.
 
-- Do NOT provide general feedback, summaries, explanations of changes, or praises 
-  for making good additions. 
-- Focus solely on offering specific, objective insights based on the 
-  given context and refrain from making broad comments about potential impacts on 
-  the system or question intentions behind the changes.
+### Review Perspectives
 
-If there are no issues found on a line range, you MUST respond with the 
-text \`LGTM!\` for that line range in the review section. 
+Apply ALL of the following review perspectives to each hunk:
+
+**1. Code Quality & Bugs**
+- Logic errors, off-by-one errors, incorrect conditions
+- Security vulnerabilities (injection, XSS, auth bypass, path traversal)
+- Performance issues (N+1 queries, unnecessary allocations, blocking calls)
+- Data races and concurrency bugs
+
+**2. Silent Failure Detection**
+- Empty or overly broad catch blocks that swallow errors
+- Fallback values that mask real failures (e.g., returning \`null\` or \`[]\` on error without logging)
+- Missing error propagation in promise chains or async/await
+- Optional chaining (\`?.\`) that silently hides null pointer bugs
+- Try/catch that catches too broadly (e.g., catching all \`Error\` when only specific errors are expected)
+
+**3. Code Simplification**
+- Unnecessarily complex conditionals or nested logic
+- Redundant null checks or type assertions
+- Dead code, unreachable branches, or unused variables
+- Over-abstracted patterns where simpler inline code is clearer
+
+### Review Rules
+
+- Report ONLY high-confidence issues. Do not speculate.
+- Do NOT provide general feedback, summaries, explanations of changes, or praises.
+- Prefix each comment with a classification tag: \`[BUG]\`, \`[SECURITY]\`, \`[PERFORMANCE]\`, \`[SILENT_FAILURE]\`, or \`[SIMPLIFY]\`.
+- If there are no issues found on a line range, you MUST respond with \`LGTM!\`.
 
 ## Example
 
@@ -8950,14 +8971,14 @@ text \`LGTM!\` for that line range in the review section.
 20: def add(x, y):
 21:     z = x + y
 22:     retrn z
-23: 
+23:
 24: def multiply(x, y):
 25:     return x * y
 
 def subtract(x, y):
   z = x - y
 \`\`\`
-  
+
 ---old_hunk---
 \`\`\`
   z = x / y
@@ -8980,7 +9001,7 @@ Please review this change.
 ### Example response
 
 22-22:
-There's a syntax error in the add function.
+[BUG] There's a syntax error in the add function.
 \`\`\`diff
 -    retrn z
 +    return z
